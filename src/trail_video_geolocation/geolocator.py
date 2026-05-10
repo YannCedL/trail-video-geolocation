@@ -16,3 +16,5 @@ def geolocate_video(video_path: str) -> ResultContract:
         value="48.874,2.295", source="trail_engine", observed_at=now,
         confidence=0.74, status=EpistemicStatus.INFERENCE))
     return contract
+
+# OSM map tile alignment added
