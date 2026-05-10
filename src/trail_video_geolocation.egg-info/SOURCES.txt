@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+src/trail_video_geolocation/__init__.py
+src/trail_video_geolocation/geolocator.py
+src/trail_video_geolocation.egg-info/PKG-INFO
+src/trail_video_geolocation.egg-info/SOURCES.txt
+src/trail_video_geolocation.egg-info/dependency_links.txt
+src/trail_video_geolocation.egg-info/requires.txt
+src/trail_video_geolocation.egg-info/top_level.txt
+tests/test_video_geo.py
