@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAIL — Video Trajectory Geolocation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 26, 43, 0.85);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-color: #10b981;
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            background-image: radial-gradient(circle at 10% 90%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #10b981, #047857);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .logo-title { font-size: 1.3rem; font-weight: 700; }
+        .logo-subtitle { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            flex: 1;
+        }
+
+        .map-wrapper {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            min-height: 500px;
+        }
+
+        #map { width: 100%; height: 100%; min-height: 500px; }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-label { color: var(--text-muted); }
+        .info-val { font-weight: 600; text-align: right; }
+
+        .badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <div class="logo-icon">🛣️</div>
+            <div>
+                <div class="logo-title">TRAIL</div>
+                <div class="logo-subtitle">Géolocalisation & Suivi de Trajectoire Vidéo</div>
+            </div>
+        </div>
+        <div class="badge">VIDEO TRAJECTORY PIPELINE ACTIVE</div>
+    </header>
+
+    <div class="layout">
+        <div class="map-wrapper">
+            <div id="map"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Propriétés de la Trajectoire</div>
+            <div class="info-row"><span class="info-label">Vidéo Analysée</span><span class="info-val" id="tVideo">-</span></div>
+            <div class="info-row"><span class="info-label">Distance Parcourue</span><span class="info-val" id="tDist" style="color:#34d399;">-</span></div>
+            <div class="info-row"><span class="info-label">Images Clés Analysées</span><span class="info-val" id="tFrames">-</span></div>
+            <div class="info-row"><span class="info-label">Méthode de Calage</span><span class="info-val" id="tMethod">-</span></div>
+        </div>
+    </div>
+
+    <script>
+        let map = L.map('map').setView([48.8755, 2.2985], 15);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: 'Trail Video Trajectory Engine'
+        }).addTo(map);
+
+        async function chargerTrajectoireVideo() {
+            try {
+                const response = await fetch('/api/v1/geolocate?video_path=parcours_drone.mp4');
+                const contract = await response.json();
+                const r = contract.result;
+
+                document.getElementById('tVideo').textContent = r.video || 'parcours_drone.mp4';
+                document.getElementById('tDist').textContent = `${r.total_distance_meters} mètres`;
+                document.getElementById('tFrames').textContent = `${r.frames_analyzed} frames`;
+                document.getElementById('tMethod').textContent = "Orthophoto + AI";
+
+                const pathCoords = (r.trajectory || []).map(t => [t.lat, t.lon]);
+                
+                if (pathCoords.length > 0) {
+                    const polyline = L.polyline(pathCoords, { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(map);
+                    map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+
+                    r.trajectory.forEach((t, idx) => {
+                        const marker = L.circleMarker([t.lat, t.lon], {
+                            radius: 6, fillColor: '#10b981', color: '#ffffff', weight: 1, fillOpacity: 0.9
+                        }).addTo(map);
+
+                        marker.bindPopup(`<strong>Point ${idx+1} [${t.timestamp}]</strong><br/>Altitude: ${t.alt_m}m<br/>Cap: ${t.heading_deg}°`);
+                    });
+                }
+
+            } catch (err) {
+                console.error("Erreur lors du calcul de trajectoire Trail.");
+            }
+        }
+
+        window.onload = chargerTrajectoireVideo;
+    </script>
+</body>
+</html>
